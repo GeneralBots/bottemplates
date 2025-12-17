@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Chat Widget</title>
+    <style>
+        /* Dev Chat Floating Button */
+        #dev-chat-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #dev-chat-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 24px rgba(102, 126, 234, 0.6);
+        }
+
+        #dev-chat-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+        }
+
+        #dev-chat-btn .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        /* Dev Chat Panel */
+        #dev-chat-panel {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 380px;
+            height: 520px;
+            background: #0f172a;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 99998;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        #dev-chat-panel.open {
+            display: flex;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Header */
+        #dev-chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #dev-chat-header h3 {
+            margin: 0;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #dev-chat-header .dev-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #dev-chat-header button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #dev-chat-header button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Messages Area */
+        #dev-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .dev-msg {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .dev-msg.user {
+            background: #667eea;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .dev-msg.bot {
+            background: #1e293b;
+            color: #e2e8f0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .dev-msg.system {
+            background: #064e3b;
+            color: #6ee7b7;
+            align-self: center;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+
+        .dev-msg.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .dev-msg pre {
+            background: #000;
+            padding: 8px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0 0 0;
+            font-size: 12px;
+        }
+
+        .dev-msg code {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+            background: #1e293b;
+            border-radius: 12px;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #64748b;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /* Input Area */
+        #dev-chat-input-area {
+            padding: 12px 16px;
+            background: #1e293b;
+            border-top: 1px solid #334155;
+            display: flex;
+            gap: 8px;
+        }
+
+        #dev-chat-input {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+            min-height: 20px;
+            max-height: 100px;
+        }
+
+        #dev-chat-input:focus {
+            border-color: #667eea;
+        }
+
+        #dev-chat-input::placeholder {
+            color: #64748b;
+        }
+
+        #dev-chat-send {
+            background: #667eea;
+            border: none;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        #dev-chat-send:hover {
+            background: #5a67d8;
+        }
+
+        #dev-chat-send:disabled {
+            background: #334155;
+            cursor: not-allowed;
+        }
+
+        #dev-chat-send svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* Quick Actions */
+        #dev-chat-actions {
+            padding: 8px 16px;
+            background: #1e293b;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .dev-action-btn {
+            background: #334155;
+            border: none;
+            color: #94a3b8;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dev-action-btn:hover {
+            background: #475569;
+            color: white;
+        }
+
+        /* File Changes Indicator */
+        .file-change {
+            background: #1e293b;
+            border-left: 3px solid #22c55e;
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 12px;
+        }
+
+        .file-change.modified { border-color: #f59e0b; }
+        .file-change.deleted { border-color: #ef4444; }
+        .file-change.created { border-color: #22c55e; }
+
+        .file-change .path {
+            color: #94a3b8;
+            font-family: monospace;
+        }
+
+        /* Scrollbar */
+        #dev-chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #dev-chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #dev-chat-messages::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Dev Chat Floating Button -->
+<button id="dev-chat-btn" onclick="toggleDevChat()" title="Dev Chat (Ctrl+Shift+D)">
+    <svg viewBox="0 0 24 24">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+        <circle cx="12" cy="10" r="1.5"/>
+        <circle cx="8" cy="10" r="1.5"/>
+        <circle cx="16" cy="10" r="1.5"/>
+    </svg>
+    <span class="badge" id="dev-chat-badge">0</span>
+</button>
+
+<!-- Dev Chat Panel -->
+<div id="dev-chat-panel">
+    <div id="dev-chat-header">
+        <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+            </svg>
+            Dev Chat
+            <span class="dev-badge">DEV</span>
+        </h3>
+        <button onclick="toggleDevChat()" title="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+        </button>
+    </div>
+
+    <div id="dev-chat-actions">
+        <button class="dev-action-btn" onclick="sendQuick('show tables')">📋 Tables</button>
+        <button class="dev-action-btn" onclick="sendQuick('list files')">📁 Files</button>
+        <button class="dev-action-btn" onclick="sendQuick('reload app')">🔄 Reload</button>
+        <button class="dev-action-btn" onclick="sendQuick('show errors')">⚠️ Errors</button>
+        <button class="dev-action-btn" onclick="clearChat()">🗑️ Clear</button>
+    </div>
+
+    <div id="dev-chat-messages">
+        <div class="dev-msg system">
+            Dev mode active. Talk to test your app or modify files.
+        </div>
+    </div>
+
+    <div id="dev-chat-input-area">
+        <textarea
+            id="dev-chat-input"
+            placeholder="Ask anything or describe changes..."
+            rows="1"
+            onkeydown="handleKeyDown(event)"
+        ></textarea>
+        <button id="dev-chat-send" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<script>
+    const DEV_CHAT_CONFIG = {
+        apiEndpoint: '/api/chat/dev',
+        wsEndpoint: '/ws/dev',
+        storageKey: 'dev_chat_history',
+        maxHistory: 50
+    };
+
+    let devChatOpen = false;
+    let ws = null;
+    let isTyping = false;
+
+    // Toggle chat panel
+    function toggleDevChat() {
+        devChatOpen = !devChatOpen;
+        const panel = document.getElementById('dev-chat-panel');
+        panel.classList.toggle('open', devChatOpen);
+
+        if (devChatOpen) {
+            document.getElementById('dev-chat-input').focus();
+            connectWebSocket();
+        }
+    }
+
+    // Keyboard shortcut: Ctrl+Shift+D
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            toggleDevChat();
+        }
+        // Escape to close
+        if (e.key === 'Escape' && devChatOpen) {
+            toggleDevChat();
+        }
+    });
+
+    // Handle input keydown
+    function handleKeyDown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    // Send message
+    async function sendMessage() {
+        const input = document.getElementById('dev-chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        // Add user message
+        addMessage(text, 'user');
+        input.value = '';
+
+        // Show typing
+        showTyping();
+
+        try {
+            // Send via WebSocket if connected, else HTTP
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'dev_message',
+                    content: text,
+                    context: {
+                        url: window.location.href,
+                        app: getAppName()
+                    }
+                }));
+            } else {
+                const response = await fetch(DEV_CHAT_CONFIG.apiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        context: {
+                            url: window.location.href,
+                            app: getAppName()
+                        }
+                    })
+                });
+
+                hideTyping();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    handleBotResponse(data);
+                } else {
+                    addMessage('Error connecting to dev server', 'error');
+                }
+            }
+        } catch (err) {
+            hideTyping();
+            addMessage('Connection error: ' + err.message, 'error');
+        }
+    }
+
+    // Send quick action
+    function sendQuick(text) {
+        document.getElementById('dev-chat-input').value = text;
+        sendMessage();
+    }
+
+    // Add message to chat
+    function addMessage(text, type = 'bot') {
+        const messages = document.getElementById('dev-chat-messages');
+        const msg = document.createElement('div');
+        msg.className = `dev-msg ${type}`;
+
+        // Parse markdown-style code blocks
+        if (type === 'bot' && text.includes('```')) {
+            msg.innerHTML = parseCodeBlocks(text);
+        } else {
+            msg.textContent = text;
+        }
+
+        messages.appendChild(msg);
+        messages.scrollTop = messages.scrollHeight;
+
+        // Save to history
+        saveHistory();
+    }
+
+    // Parse code blocks
+    function parseCodeBlocks(text) {
+        return text.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+            return `<pre><code class="${lang}">${escapeHtml(code.trim())}</code></pre>`;
+        }).replace(/\n/g, '<br>');
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Show file change
+    function showFileChange(path, type = 'modified') {
+        const messages = document.getElementById('dev-chat-messages');
+        const change = document.createElement('div');
+        change.className = `file-change ${type}`;
+        change.innerHTML = `
+            <span>${type === 'created' ? '➕' : type === 'deleted' ? '➖' : '✏️'}</span>
+            <span class="path">${path}</span>
+        `;
+        messages.appendChild(change);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Handle bot response
+    function handleBotResponse(data) {
+        hideTyping();
+
+        if (data.message) {
+            addMessage(data.message, 'bot');
+        }
+
+        if (data.files_changed) {
+            data.files_changed.forEach(f => {
+                showFileChange(f.path, f.type);
+            });
+        }
+
+        if (data.reload) {
+            addMessage('Reloading app...', 'system');
+            setTimeout(() => location.reload(), 1000);
+        }
+    }
+
+    // Typing indicator
+    function showTyping() {
+        if (isTyping) return;
+        isTyping = true;
+
+        const messages = document.getElementById('dev-chat-messages');
+        const typing = document.createElement('div');
+        typing.id = 'typing-indicator';
+        typing.className = 'typing-indicator';
+        typing.innerHTML = '<span></span><span></span><span></span>';
+        messages.appendChild(typing);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function hideTyping() {
+        isTyping = false;
+        const typing = document.getElementById('typing-indicator');
+        if (typing) typing.remove();
+    }
+
+    // WebSocket connection
+    function connectWebSocket() {
+        if (ws && ws.readyState === WebSocket.OPEN) return;
+
+        try {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}${DEV_CHAT_CONFIG.wsEndpoint}`);
+
+            ws.onopen = () => {
+                addMessage('Connected to dev server', 'system');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                switch (data.type) {
+                    case 'message':
+                        hideTyping();
+                        addMessage(data.content, 'bot');
+                        break;
+                    case 'file_changed':
+                        showFileChange(data.path, data.change_type);
+                        break;
+                    case 'reload':
+                        addMessage('Files changed. Reloading...', 'system');
+                        setTimeout(() => location.reload(), 500);
+                        break;
+                    case 'error':
+                        hideTyping();
+                        addMessage(data.content, 'error');
+                        break;
+                }
+            };
+
+            ws.onclose = () => {
+                // Reconnect after 3s
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('Dev chat WS error:', err);
+            };
+        } catch (err) {
+            console.error('WebSocket connection failed:', err);
+        }
+    }
+
+    // Get app name from URL
+    function getAppName() {
+        const match = location.pathname.match(/\/apps\/([^\/]+)/);
+        return match ? match[1] : 'unknown';
+    }
+
+    // Clear chat
+    function clearChat() {
+        const messages = document.getElementById('dev-chat-messages');
+        messages.innerHTML = '<div class="dev-msg system">Chat cleared. Dev mode active.</div>';
+        localStorage.removeItem(DEV_CHAT_CONFIG.storageKey);
+    }
+
+    // Save/load history using user_data virtual table
+    function saveHistory() {
+        const messages = document.getElementById('dev-chat-messages');
+        const history = Array.from(messages.children).map(m => ({
+            type: m.classList[1],
+            text: m.textContent
+        })).slice(-DEV_CHAT_CONFIG.maxHistory);
+
+        // Store in user_data via API
+        fetch('/api/db/user_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: 'dev_chat_history',
+                app: getAppName(),
+                data: history
+            })
+        }).catch(() => {
+            // Fallback to localStorage
+            localStorage.setItem(DEV_CHAT_CONFIG.storageKey, JSON.stringify(history));
+        });
+    }
+
+    function loadHistory() {
+        // Try to load from user_data
+        fetch(`/api/db/user_data?key=dev_chat_history&app=${getAppName()}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.data) {
+                    data.data.forEach(m => addMessage(m.text, m.type));
+                }
+            })
+            .catch(() => {
+                // Fallback to localStorage
+                const saved = localStorage.getItem(DEV_CHAT_CONFIG.storageKey);
+                if (saved) {
+                    JSON.parse(saved).forEach(m => addMessage(m.text, m.type));
+                }
+            });
+    }
+
+    // Initialize on load if dev mode
+    document.addEventListener('DOMContentLoaded', () => {
+        // Only show in dev mode (check URL param or cookie)
+        const isDevMode = location.search.includes('dev=1') ||
+                          document.cookie.includes('dev_mode=1') ||
+                          location.hostname === 'localhost';
+
+        if (!isDevMode) {
+            document.getElementById('dev-chat-btn').style.display = 'none';
+            document.getElementById('dev-chat-panel').style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
